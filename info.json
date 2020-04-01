@@ -1,0 +1,26 @@
+{
+"SOURCE_VOLUMES": [
+                      {
+                                "NAMESPACE": "default",
+                                "PVCS": ["registrynfs-claim"]
+                      },
+		
+		     {
+				"NAMESPACE": "myapp",
+				"PVCS": ["primary-pgdata"]
+
+                     },
+		   {
+			"NAMESPACE":"primary",
+			"PVCS":["primary-pgdata"]
+		   },
+		{
+			"NAMESPACE": "primary2",
+			"PVCS":["primary-pgdata"]	
+
+		}
+
+
+                ]
+}
+

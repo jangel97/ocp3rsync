@@ -1,0 +1,7 @@
+# Others
+.svn/
+.git/
+*.bak
+*.git
+*~
+

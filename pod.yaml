@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ params.name }}
+spec:
+  securityContext:
+    supplementalGroups:
+    - 65534
+  volumes:
+    - name: {{ params.volume_name }}
+      persistentVolumeClaim:
+        claimName: {{ params.pvc }}
+      imagePullSecrets:
+        - name: {{ name }}
+  containers:
+    - name: rsyncer
+      image: {{ params.image }}
+      command:
+        - /bin/bash
+        - -c
+        - "while true; do sleep 30; done"
+      imagePullPolicy: Always
+      resources: {}
+      volumeMounts:
+        - mountPath: {{ params.backup_path }}
+          name: {{ params.volume_name }}
