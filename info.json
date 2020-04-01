@@ -1,4 +1,6 @@
 {
+"AGENT_IMAGE_TAG": "rsyncer-agent:latest",
+"AGENT_PROJECT": "rsync-agent",
 "SOURCE_VOLUMES": [
                       {
                                 "NAMESPACE": "default",

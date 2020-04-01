@@ -44,11 +44,11 @@ def treat_pvcs():
       for pvc in params['PVCS']:
          pvc=v1_pvc.get(namespace=namespace,name=pvc).to_dict()  #CHEQUEAR, QUE PASA SI EL PVC NO SE ENCUENTRA EN EL PROYECTO, O DIRECTAMENTE NI EXISTE
          if pvc['status']['phase'] == "Bound":
-            rsync(pods,pvc,namespace)
+            rsync(pods,pvc,namespace,info['AGENT_IMAGE_TAG'],info['AGENT_PROJECT'])
          else: 
             print("ERROR: PVC: "+ str(pvc['metadata']['name']) + ", proyecto: " + str(namespace) + " has status pending..." )
 
-def rsync(pods,pvc,namespace):
+def rsync(pods,pvc,namespace,agent_image,agent_project):
    print("\n\n----------------------------------\nNAMESPACE: " + namespace)
    print("PVC: " + pvc['metadata']['name'])
    for pod in pods: 
@@ -64,15 +64,18 @@ def rsync(pods,pvc,namespace):
          print(command)
          print(os.popen(command).read()) 
          return   #la funcion se acaba porque ya se encontro un pod donde el pvc estaba montado, si el codigo continua su ejecucion es porque el pvc esta 'Bound' pero ningun pod lo tiene montado
-   print('TEMPORARY POOOOOOOOOOOOOD') 
+   print('TEMPORARY POOOOOOOOOOOOOD')
+   print('oc tag '+agent_project +'/'+agent_image+ ' '+namespace+'/rsyncer-agent -n ' + agent_project)
+   print(os.popen('oc tag '+agent_project +'/'+agent_image+ ' '+namespace+'/rsyncer-agent:latest -n ' + agent_project).read())
+   pod_image=(os.popen('oc get is -o yaml -n '+namespace+' | grep dockerImageRepository | tail -n1').read())
+   pod_image= pod_image.split(": ")[1].rstrip()
+   print("POD IMAGE IS :" + str(pod_image))
    pod_yaml=open('pod.yaml','r').read()
    template=Template(pod_yaml)
    params_pod_temporary={
                   'backup_path': '/backup',
                   'name': 'rsyncer-pod-agent',
-                  'image': 'docker-registry-default.apps.ocp-poc/oc-rsyncer-agent/rsyncer-agent',
-                  #'image':'docker-registry.default.svc:5000/default/rsyncer:latest',
-                  #'image': 'registry.redhat.io/openshift3/ose-cli:v3.11',
+                  'image': pod_image,
                   'pvc': pvc['metadata']['name'],
                   'volume_name': str(pvc['metadata']['namespace']) + '-pvc-volume' }
 
