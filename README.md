@@ -47,6 +47,9 @@ https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-regi
 oc adm pod-network join-projects --to=prueba primary default #prueba, proyecto donde desplegue el pod rsyncer, primary y default proyectos con volumenes
 #incluir en el condigo
 
+https://docs.openshift.com/container-platform/3.11/dev_guide/managing_images.html#importing-images-across-projects   -> promocion de imagenes entre proyectos
+
+
 oc adm pod-network isolate-projects prueba primary default
 #isolate project, default is not possible to isolate
 
