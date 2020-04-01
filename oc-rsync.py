@@ -53,7 +53,7 @@ def initialize():
    v1_pod = dyn_client.resources.get(api_version='v1',kind='Pod')
 
 '''
-El objetivo de esta funcion es iterar sobre la lista de pares PROYECTO:PVCs, especificada en el fichero info.json, asi pues, para cada proyecto se pedira al api pods y pvcs delproyecto que se este tratando
+El objetivo de esta funcion es iterar sobre la lista de pares PROYECTO:PVCs, especificada en el fichero info.json, asi pues, para cada proyecto se pedira al api pods solo en estado Running y pvcs, del proyecto que se este tratando. A continuacion, se iterara sobre los PVCs y se delegara en la funcion rsync, para que esta, con toda esta informacion (PODs, pvc, proyecto actual, nombre image-stream y proyecto donde se encuentra el image-stream a partir del cual se creara un pod temporal si es que ningun pod monta el pvc concreto).
 '''
 def treat_pvcs():
    info=json.loads(open('info.json').read())
@@ -67,6 +67,11 @@ def treat_pvcs():
          else: 
             print("ERROR: PVC: "+ str(pvc['metadata']['name']) + ", proyecto: " + str(namespace) + " has status pending..." )
 
+'''
+El objetivo de esta funcion es iterar sobre los pods y encontrar cual es el que monta el pvc a tratar. Si se encuentra el pod, se procede a realizar el rsync contra este, una vez acabado, se sale de la funcion, pues no hay nada mas que hacer. Si resulta que ningun pod monta el volumen, se procedera a crear un pod temporal en el proyecto donde esta el pvc, el cual montara el volumen y se hara el oc rsync contra este. 
+
+Este pod temporal se construira mediante los parametros especificados en el info.json (nombre image-stream, proyecto donde se encuentra image-stream). El pod, por defecto, esperara unos 5 minutos para desplegarse, si en 5 minutos no se ha desplegado correctamnte (estardo=='Running'), se procedera a tratar al siguiente PersistentVolumeClaim y no se eliminara el pod temporal, con proposito de debug. Si el pod temporal se desplega correctamente, se procedera a hacer rsync contra este, una vez finalizado el rsync, se destruira. 
+'''
 def rsync(pods,pvc,namespace,agent_image,agent_project):
    print("\n\n----------------------------------\nNAMESPACE: " + namespace)
    print("PVC: " + pvc['metadata']['name'])
@@ -105,8 +110,8 @@ def rsync(pods,pvc,namespace,agent_image,agent_project):
       time.sleep(3)
       tt=tt+3
       if tt>=(300/3): 
-         print('ERROR: Pod temporal, no consiguio levantar en proyecto: ' + namespace)
-         return
+         print('ERROR: Pod temporal, no consiguio levantar en proyecto: ' + namespace + ' es recomendable borrar el pod, para la posterior ejecucion del script')
+         return "TemporarPodError"
  
    print("Attempting rsync against temporary pod in project: "+namespace) 
    command="oc -n " + namespace + " rsync "+ params_pod_temporary['name']  +":" + params_pod_temporary['backup_path'] + " "+ ROOT_BACKUP_FOLDER +"/" +namespace + "/"+pvc['metadata']['name'] + RSYNC_OPTIONS
@@ -117,6 +122,18 @@ def rsync(pods,pvc,namespace,agent_image,agent_project):
    v1_pod.delete(name=params_pod_temporary['name'] , namespace=namespace)
    print("Temporary pod in namespace " + namespace + " was deleted")
  
+'''
+Metodo principal, de momento no hay parametros de entrada.
+'''
 if __name__ == "__main__":
    initialize()
    treat_pvcs()
+
+'''
+POSIBLES MEJORAS:
+	- Mejorar control de errores (que pasa si no existe el pvc o el proyecto)
+	- Excepciones custom para indicar errores con mas claridad.
+	- Añadir filtro defaults al template pod.yaml.
+	- Controlar si el pod temporal y existia en el proyecto.
+	- Hacer el template de jinja2 pod.yaml mas extensible para que desde el ficher info.json se puedan añadir diferentes campos.
+'''
