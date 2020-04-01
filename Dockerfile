@@ -1,4 +1,4 @@
-FROM registry.redhat.io/openshift3/ose-cli:v3.11
+FROM registry.redhat.io/openshift3/ose-cli
 MAINTAINER openshift@essiprojects.com
 ENV HOME="/opt/app-root" \
   SCRIPTS_HOME="/opt/app-root" \
