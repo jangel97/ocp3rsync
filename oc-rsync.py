@@ -70,7 +70,8 @@ def rsync(pods,pvc,namespace):
    params_pod_temporary={
                   'backup_path': '/backup',
                   'name': 'rsyncer-pod-agent',
-                  'image':'docker-registry.default.svc:5000/default/rsyncer:latest',
+                  'image': 'docker-registry-default.apps.ocp-poc/oc-rsyncer-agent/rsyncer-agent',
+                  #'image':'docker-registry.default.svc:5000/default/rsyncer:latest',
                   #'image': 'registry.redhat.io/openshift3/ose-cli:v3.11',
                   'pvc': pvc['metadata']['name'],
                   'volume_name': str(pvc['metadata']['namespace']) + '-pvc-volume' }
