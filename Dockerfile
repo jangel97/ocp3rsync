@@ -1,6 +1,6 @@
 FROM registry.redhat.io/openshift3/ose-cli:v3.11
 MAINTAINER openshift@essiprojects.com
-#ENV PYTHONWARNINGS="ignore:Unverified HTTPS request"
+ENV PYTHONWARNINGS="ignore:Unverified HTTPS request"
 ENV HOME /opt/app-root
 ENV SCRIPTS_HOME /opt/app-root
 ENV BACKUP_PATH /opt/app-root/backup
