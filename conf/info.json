@@ -1,15 +1,15 @@
 {
-"SMTP_PORT": "25",
-"SMTP_SERVER": "smtp.uoc.edu",
+"SMTP_PORT": "587",
+"SMTP_SERVER": "smtp.gmail.com",
 "MAIL_SENDER": "jamorena@essiprojects.com",
-"MAIL_DEST": ["rfigolsc@uoc.edu"],
+"MAIL_DEST": ["jamorena@essiprojects.com"],
 "AGENT_IMAGE_STREAM": "rsyncer-agent",
 "AGENT_IMAGE_TAG": "latest",
 "AGENT_PROJECT": "rsync-agent",
 "SOURCE_VOLUMES": [
 			{
-				"NAMESPACE":"auladesp",
-				"PVCS":["app-glusterfs"]
+				"NAMESPACE": "pgouser2",
+				"PVCS":["prueba-ewrq"]
 			} 	
 		]
 }

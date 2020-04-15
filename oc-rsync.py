@@ -7,7 +7,7 @@ Este script se puede ejcutar tanto dentro de un pod como desde un bastion de Ope
 - No se debe borrar el pod rsyncer temporal mientras este en Running y el script no haya finalizado
 Para mas información consultar en el fichero README.md
 '''
-import os,sys,json,time, yaml, logging
+import os,sys,json,time, yaml, logging, argparse as ap
 from datetime import datetime
 from kubernetes import client, config
 from openshift.dynamic import DynamicClient, exceptions as OpenShiftExceptions
@@ -31,7 +31,7 @@ log_filename= filehandler.baseFilename
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(formatter)
 logger.addHandler(consoleHandler)
-logger.debug('Smart PersistentVolume Containered Replicator is fully up and running...')
+logger.debug('Smart PersistentVolume Containered Replicator is just started...')
 
 try:
     import textwrap
@@ -72,6 +72,7 @@ ROOT_BACKUP_FOLDER="/backup"
 
 #opciones generales rsync
 RSYNC_OPTIONS=" --delete=true --progress=true"
+RSYNC_RESTORE_OPTIONS=" --progress=true"
 
 class JsonError(Exception):
    def __init__(self, message,info=""):
@@ -174,7 +175,7 @@ Es obligatorio que en el json existan las siguientes claves:
                 ]
 }
 '''
-def treat_pvcs(info):
+def treat_pvcs(info,args):
    html_params={}
    logger.info('Procediendo a procesar los diferentes PersistentVolumeClaims especificados en el JSON')
    for params in info['SOURCE_VOLUMES']:
@@ -187,7 +188,7 @@ def treat_pvcs(info):
                pvcget=v1_pvc.get(namespace=namespace,name=pvc).to_dict() 
                if pvcget.get('status',{}).get('phase',"") == "Bound": 
                   logger.info('Procediendo a procesar el objeto PersistentVolumeClaim: ' + pvc + ' proyecto: ' + namespace)
-                  message=rsync(pods,pvcget,namespace,info['AGENT_IMAGE_TAG'],info['AGENT_IMAGE_STREAM'],info['AGENT_PROJECT'])
+                  message=rsync(pods,pvcget,namespace,info['AGENT_IMAGE_TAG'],info['AGENT_IMAGE_STREAM'],info['AGENT_PROJECT'],args)
                   if message is not None:
                      html_params['PersistentVolumeClaim: '+pvc]=message
                else: 
@@ -211,7 +212,7 @@ El objetivo de esta funcion es iterar sobre los pods y encontrar cual es el que 
 
 Este pod temporal se construira mediante los parametros especificados en el info.json (nombre image-stream, proyecto donde se encuentra image-stream). El pod, por defecto, esperara unos 5 minutos para desplegarse, si en 5 minutos no se ha desplegado correctamnte (estado=='Running'), se procedera a tratar al siguiente PersistentVolumeClaim y no se eliminara el pod temporal, con proposito de debug. Si el pod temporal se desplega correctamente, se procedera a hacer rsync contra este, una vez finalizado el rsync, se destruira. 
 '''
-def rsync(pods,pvc,namespace,agent_image_tag,agent_image_stream,agent_project):
+def rsync(pods,pvc,namespace,agent_image_tag,agent_image_stream,agent_project,args):
    for pod in pods: 
       volume_pod_pvc=list(filter(lambda volume: volume.get('persistentVolumeClaim',{}).get('claimName','')==pvc['metadata']['name'],pod['spec']['volumes'])) #se comprueba que el pod tenga el pvc montado
       if volume_pod_pvc: #si tiene volumen asociado al pvc y el status es 'Running', se recorreran los containers para coger el que atache el volumen
@@ -223,8 +224,11 @@ def rsync(pods,pvc,namespace,agent_image_tag,agent_image_stream,agent_project):
                if volume_mount: break #se encontro el volume_mount 
             pod_path=volume_mount[0]['mountPath']  #siempre deberia encontrarse el volume_mount, muy extrano tiene que ser para que no
             pod_name=pod['metadata']['name']
-            Path(ROOT_BACKUP_FOLDER + "/"+namespace+"/"+pvc['metadata']['name']).mkdir(parents=True, exist_ok=True)
-            command="oc -n " + namespace + " rsync " + pod_name  +":" + pod_path + " "+ ROOT_BACKUP_FOLDER + "/" +namespace + "/"+pvc['metadata']['name'] + RSYNC_OPTIONS
+            if not(args.restore):
+               Path(ROOT_BACKUP_FOLDER + "/"+namespace+"/"+pvc['metadata']['name']).mkdir(parents=True, exist_ok=True)
+               command="oc -n " + namespace + " rsync " + pod_name  +":" + pod_path + " "+ ROOT_BACKUP_FOLDER + "/" +namespace + "/"+pvc['metadata']['name'] + RSYNC_OPTIONS
+            else:
+               command="oc -n " + namespace + " rsync " + ROOT_BACKUP_FOLDER + "/" +namespace + "/"+pvc['metadata']['name'] + " "+ pod_name+":"+pod_path +" "+ RSYNC_RESTORE_OPTIONS
             logger.info(command)
             logger.info(os.popen(command).read()) 
             logger.debug('oc rsync realizado con exito!')
@@ -268,9 +272,12 @@ def rsync(pods,pvc,namespace,agent_image_tag,agent_image_stream,agent_project):
          break
 
    if (running):	#si el pod llego a levantar (status=="Running"), habra que hacer rsync
-      logger.debug("Realizando rsync contra pod temporal en proyecto: "+namespace) 
-      command="oc -n " + namespace + " rsync "+ params_pod_temporary['name']  +":" + params_pod_temporary['backup_path'] + " "+ ROOT_BACKUP_FOLDER +"/" +namespace + "/"+pvc['metadata']['name'] + RSYNC_OPTIONS
-      Path(ROOT_BACKUP_FOLDER + "/"+namespace+"/"+pvc['metadata']['name']).mkdir(parents=True, exist_ok=True)
+      logger.debug("Realizando rsync contra pod temporal en proyecto: "+namespace)
+      if not(args.restore):
+         command="oc -n " + namespace + " rsync "+ params_pod_temporary['name']  +":" + params_pod_temporary['backup_path'] + " "+ ROOT_BACKUP_FOLDER +"/" +namespace + "/"+pvc['metadata']['name'] + RSYNC_OPTIONS
+         Path(ROOT_BACKUP_FOLDER + "/"+namespace+"/"+pvc['metadata']['name']).mkdir(parents=True, exist_ok=True)
+      else:
+         command="oc -n " + namespace + " rsync "+  ROOT_BACKUP_FOLDER +"/" +namespace + "/"+pvc['metadata']['name']  +" " + params_pod_temporary['name']  +":" + params_pod_temporary['backup_path'] + " " + RSYNC_RESTORE_OPTIONS
       logger.info(command)
       logger.info(os.popen(command).read())
    logger.info('Se procede a borrar el pod temporal')
@@ -297,10 +304,17 @@ def rsync(pods,pvc,namespace,agent_image_tag,agent_image_stream,agent_project):
 Metodo principal, de momento no hay parametros de entrada.
 '''
 if __name__ == "__main__":
+   parser = ap.ArgumentParser(description="Este proyecto realiza una copia entre PVCS")
+   parser.add_argument("--restore",action='store_true', help="Restore mode")
+   parser.add_argument("--backup",action='store_true',help="Backup mode")
+   args, leftovers = parser.parse_known_args()
+   if len(sys.argv)>2:
+      logger.error("Solo se acepta una unica opcion, ejecuta `python3 oc-rsync.py --help` para mas informacion")
+      quit()
    initialize()  #se inicializa el cliente del api de openshift con contexto correspondiente
    info=validate_and_read__params_json()  #se verifica y comprueba el json (parametros de entrada)
    if info is not None:	#si no han habido errores
-      results_execution=treat_pvcs(info)   #si el json es correcto
+      results_execution=treat_pvcs(info,args)   #si el json es correcto
       table_html_params={'info':results_execution,'logfile':log_filename}
       send_email(info['SMTP_SERVER'],info['SMTP_PORT'],email_header,info['MAIL_SENDER'],info['MAIL_DEST'],[log_filename],table_html_params,logger) 
       logger.debug('Proceso de sincronizacion de PV completado....')
