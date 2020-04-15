@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    pv.kubernetes.io/bind-completed: "yes"
+  creationTimestamp: null
+  finalizers:
+  - kubernetes.io/pvc-protection
+  name: rsyncer-pvc
+  selfLink: /api/v1/namespaces/pgouser2/persistentvolumeclaims/prueba-msgs
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: legacy-nfs
+  volumeName: rsyncer-pv
+status: {}

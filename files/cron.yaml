@@ -1,0 +1,39 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: rsyncer
+spec:
+  schedule: "*/1 * * * *" 
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 1 
+  concurrencyPolicy: Forbid
+  jobTemplate:             
+    spec:
+      template:
+        metadata:
+          labels:          
+            parent: "rsyncer"
+        spec:
+          volumes:
+          - configMap:
+              defaultMode: 420
+              name: info
+            name: infomap
+          - persistentVolumeClaim:
+              claimName: rsyncer-pvc  
+            name: claim
+          containers:
+          - name: rsyncer
+            image:  docker-registry.default.svc:5000/oc-rsyncer/rsync 
+            volumeMounts:
+            - mountPath: /opt/app-root/info.json
+              name: infomap
+              subPath: info.json
+            - mountPath: /opt/app-root/backup/
+              name: claim
+          restartPolicy: Never
+          terminationGracePeriodSeconds: 30
+          activeDeadlineSeconds: 500
+          dnsPolicy: ClusterFirst
+          serviceAccountName: backup
+          serviceAccount: backup

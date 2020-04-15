@@ -1,0 +1,9 @@
+.svn/
+.git/
+*.bak
+*.git
+*.log
+*~
+__pycache__/ 
+conf/__pycache__/
+conf/credentials.py                                                                      
