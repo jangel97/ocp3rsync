@@ -1,8 +1,8 @@
 {
 "SMTP_PORT": "587",
-"SMTP_SERVER": "smtp.uoc.com",
-"MAIL_SENDER": "rfigolsc@uoc.edu",
-"MAIL_DEST": ["rfigolsc@uoc.edu"],
+"SMTP_SERVER": "smtp.gmail.com",
+"MAIL_SENDER": "",
+"MAIL_DEST": [""],
 "AGENT_IMAGE_STREAM": "rsyncer-agent",
 "AGENT_IMAGE_TAG": "latest",
 "AGENT_PROJECT": "rsync-agent",
