@@ -184,7 +184,8 @@ def create_pv(namespace,pvc):
       try:
          resp = v1_pv.create(body=pv_template,namespace=namespace)
          logger.info('PV: ' + pvc['spec']['volumeName']+'-backup'+' creado')
-      except e:
+      except Exception as e:
+         logger.error('No se pudo crear el pv: '+  pvc['spec']['volumeName']+ '-backup')
          logger.error(e)
    else:
       logger.info('PV: '+ pvc['spec']['volumeName']+ '-backup ya existente')
