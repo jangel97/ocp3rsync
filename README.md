@@ -11,6 +11,11 @@ git checkout oc-rsyncer-agent
 
 
 mount -t nfs vdm-oscont.uoc.es:/PRO_openshift_repo/ /backup
+
+export PYTHONDONTWRITEBYTECODE="false" #Avoid __pycache__
+
+export PYTHONWARNINGS="ignore:Unverified HTTPS request"
+
 #En el directorio /backup/PVCs ubicaremos los datos de cada pvc, con el siguiente formato: /backup/PVCs/<namespace>/<pvc>
 
 oc project default
