@@ -13,7 +13,7 @@
 			},
 			{
 				"NAMESPACE": "test-postgresql",
-				"PVCS": ["test2","postgresql"]
+				"PVCS": ["test2-pgbr-repo"]
 			}
 		]
 }

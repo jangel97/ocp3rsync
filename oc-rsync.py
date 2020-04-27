@@ -168,10 +168,12 @@ Esta rutina crea un PV con los datos de la aplicacion, para agilizar no tener qu
 def create_pv(namespace,pvc):
    pv_yaml=open('templates/pv.yaml.j2','r').read()
    template=Template(pv_yaml)
-   if v1_pv.get(name=pvc['metadata']['name'])==None:
-      logger.info('Procediendo a crear PV: '+ pvc['metadata']['name'])
+   try:
+      v1_pv.get(name=str(pvc['spec']['volumeName']+'-backup'))
+   except OpenShiftExceptions.NotFoundError: 
+      logger.info('Procediendo a crear PV: '+ pvc['spec']['volumeName']+'backup')
       params_pv={
-                  'pv_name': pvc['metadata']['name'],
+                  'pv_name': pvc['spec']['volumeName']+'-backup',
 	          'accessModes': pvc['spec']['accessModes'],
                   'namespace': pvc['metadata']['namespace'],
 		  'storageClass': 'nexica-nfs',
@@ -180,9 +182,10 @@ def create_pv(namespace,pvc):
       pv_definition=template.render(params=params_pv)
       pv_template=yaml.load(pv_definition, Loader=yaml.FullLoader)
       resp = v1_pv.create(body=pv_template,namespace=namespace)
-      logger.info(resp)
-      logger.info('PV CREADO')  
-   logger.info('PV: '+ pvc['metadata']['name']+ ' ya existente')
+      logger.info(resp.to_dict())
+      logger.info('PV CREADO')
+   else:
+      logger.info('PV: '+ pvc['spec']['volumeName']+ '-backup ya existente')
 
 
 
