@@ -181,9 +181,11 @@ def create_pv(namespace,pvc):
 		  'size': pvc['spec']['resources']['requests']['storage']}
       pv_definition=template.render(params=params_pv)
       pv_template=yaml.load(pv_definition, Loader=yaml.FullLoader)
-      resp = v1_pv.create(body=pv_template,namespace=namespace)
-      logger.info(resp.to_dict())
-      logger.info('PV CREADO')
+      try:
+         resp = v1_pv.create(body=pv_template,namespace=namespace)
+         logger.info('PV: ' + pvc['spec']['volumeName']+'-backup'+' creado')
+      except e:
+         logger.error(e)
    else:
       logger.info('PV: '+ pvc['spec']['volumeName']+ '-backup ya existente')
 
