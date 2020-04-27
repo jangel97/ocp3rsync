@@ -51,6 +51,8 @@ v1_pvc=None
 v1_pod=None
 v1_projects=None
 v1_is=None
+v1_pv=None
+
 projects_list=None
 json_key_error='''
 Ejemplo de como usar el fichero JSON de parametro de entrada:
@@ -68,7 +70,7 @@ Ejemplo de como usar el fichero JSON de parametro de entrada:
 		'''
  
 #ruta backup, si el script se ejecuta en un host, la raiz de los backups sera /backup, si se ejecuta en un pod, sera /opt/app-root/backup
-ROOT_BACKUP_FOLDER="/backup"
+ROOT_BACKUP_FOLDER="/backup/PVCs"
 
 #opciones generales rsync
 RSYNC_OPTIONS=" --delete=true --progress=true"
@@ -108,8 +110,10 @@ def initialize():
    global v1_pod
    global v1_projects
    global projects_list
+   global v1_pv
    try:
       v1_pvc = dyn_client.resources.get(api_version='v1',kind='PersistentVolumeClaim')
+      v1_pv  = dyn_client.resources.get(api_version='v1',kind='PersistentVolume')
       v1_is = dyn_client.resources.get(api_version='v1',kind='ImageStream')
       v1_pod = dyn_client.resources.get(api_version='v1',kind='Pod')
       v1_projects = dyn_client.resources.get(api_version='project.openshift.io/v1', kind='Project')
@@ -159,6 +163,31 @@ def validate_and_read__params_json():
    
 
 '''
+Esta rutina crea un PV con los datos de la aplicacion, para agilizar no tener que crearlo manualmente a posteriori
+'''
+def create_pv(namespace,pvc):
+   pv_yaml=open('templates/pv.yaml.j2','r').read()
+   template=Template(pv_yaml)
+   if v1_pv.get(name=pvc['metadata']['name'])==None:
+      logger.info('Procediendo a crear PV: '+ pvc['metadata']['name'])
+      params_pv={
+                  'pv_name': pvc['metadata']['name'],
+	          'accessModes': pvc['spec']['accessModes'],
+                  'namespace': pvc['metadata']['namespace'],
+		  'storageClass': 'nexica-nfs',
+                  'serverNFS': 'vdm-oscont.uoc.es',
+		  'size': pvc['spec']['resources']['requests']['storage']}
+      pv_definition=template.render(params=params_pv)
+      pv_template=yaml.load(pv_definition, Loader=yaml.FullLoader)
+      resp = v1_pv.create(body=pv_template,namespace=namespace)
+      logger.info(resp)
+      logger.info('PV CREADO')  
+   logger.info('PV: '+ pvc['metadata']['name']+ ' ya existente')
+
+
+
+
+'''
 El objetivo de esta funcion es iterar sobre la lista de pares PROYECTO:PVCs, especificada en el fichero info.json, asi pues, para cada proyecto se pedira al api pods solo en estado Running y pvcs, del proyecto que se este tratando. A continuacion, se iterara sobre los PVCs y se delegara en la funcion rsync, para que esta, con toda esta informacion (PODs, pvc, proyecto actual, nombre image-stream y proyecto donde se encuentra el image-stream a partir del cual se creara un pod temporal si es que ningun pod monta el pvc concreto).
 
 Si un proyecto o pvc no existe, dara error y se procedera con el siguiente de la lista.
@@ -191,6 +220,9 @@ def treat_pvcs(info,args):
                   message=rsync(pods,pvcget,namespace,info['AGENT_IMAGE_TAG'],info['AGENT_IMAGE_STREAM'],info['AGENT_PROJECT'],args)
                   if message is not None:
                      html_params['PersistentVolumeClaim: '+pvc]=message
+                  else:
+                     if not(args.restore): 
+                        create_pv(namespace,pvcget)
                else: 
                   error="ERROR: PVC no esta en estado Bound, PVC: "+ str(params['PVCS'])
                   logger.error(error)

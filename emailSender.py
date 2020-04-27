@@ -19,6 +19,7 @@ recipients: array de destinatarios
 attachments: array de ficheros de attach
 '''
 def send_email(smtp_server,smtp_port,subject,sender,recipients,attachments,params_email,logger):
+    logger.info("Procediendo a enviar correo")
     html_text= open('templates/email.html.j2').read()
     html_template=Template(html_text)
     html=html_template.render(params=params_email)     

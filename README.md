@@ -9,21 +9,27 @@ git checkout oc-rsyncer-agent
 
 #EN EL FICHERO info.json HAY QUE PONER LOS PVCS (en el campo SOURCE_VOLUMES) QUE SE DESEAN EXPORTAR
 
+
+mount -t nfs vdm-oscont.uoc.es:/PRO_openshift_repo/ /backup
+#En el directorio /backup/PVCs ubicaremos los datos de cada pvc, con el siguiente formato: /backup/PVCs/<namespace>/<pvc>
+
 oc project default
 
-oc create -f conf/rbac.yml
+oc create -f files/rbac.yml
 
-oc new-build --name rsync --binary --strategy docker #create build from local dir
+oc new-build --name rsync --binary --strategy docker -n oc-rsyncer #create build from local dir
 
-oc start-build rsync --from-dir . --follow
+oc start-build rsync --from-dir . --follow -n oc-rsyncer
 
-oc create configmap info --from-file=info.json -n default
+oc create configmap info --from-file=conf/info.json -n default
 
 oc create -f files/pv.yaml
 
 oc create -f files/pvc.yaml -n default 
 
 oc create -f files/cron.yaml
+
+
 
 -------------------------------------------------
 
